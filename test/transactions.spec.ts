@@ -11,11 +11,20 @@ describe('transactions', () => {
     await app.close()
   })
 
-  it('should allow the user to create a new transaction.', async () => {
+  it('should allow the user to create a new debit transaction', async () => {
     const response = await request(app.server).post('/transactions').send({
       amount: 100,
       title: 'test',
       type: 'debit',
+    })
+    expect(response.status).toBe(201)
+  })
+
+  it('should allow the user to create a new crediti transaction.', async () => {
+    const response = await request(app.server).post('/transactions').send({
+      amount: 100,
+      title: 'test',
+      type: 'credit',
     })
     expect(response.status).toBe(201)
   })
