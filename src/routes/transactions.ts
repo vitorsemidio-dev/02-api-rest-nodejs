@@ -2,57 +2,81 @@ import { FastifyInstance } from 'fastify'
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { knex } from '../database'
+import { checkSessionIdExists } from '../middlewares/check-session-id-exists'
 
 export async function transactionsRoutes(app: FastifyInstance) {
-  app.get('/', async (request, reply) => {
-    const sessionId = request.cookies.sessionId
+  app.get(
+    '/',
+    {
+      preHandler: [checkSessionIdExists],
+    },
+    async (request, reply) => {
+      const { sessionId } = request.cookies
 
-    if (!sessionId) {
-      return reply.status(401).send({
-        error: 'Unauthorized.',
+      const transactions = await knex('transactions')
+        .where({
+          session_id: sessionId,
+        })
+        .select('*')
+
+      return {
+        data: transactions,
+      }
+    },
+  )
+
+  app.get(
+    '/:id',
+    {
+      preHandler: [checkSessionIdExists],
+    },
+    async (request, reply) => {
+      const getTransactionParamsSchema = z.object({
+        id: z.string().uuid(),
       })
-    }
+      const { id } = getTransactionParamsSchema.parse(request.params)
+      const { sessionId } = request.cookies
 
-    const transactions = await knex('transactions')
-      .select('*')
-      .where('session_id', sessionId)
+      const transaction = await knex('transactions')
+        .select('*')
+        .where({
+          id,
+          session_id: sessionId,
+        })
+        .first()
 
-    return {
-      data: transactions,
-    }
-  })
+      if (!transaction) {
+        return reply.status(404).send({
+          error: 'Transaction not found',
+        })
+      }
 
-  app.get('/:id', async (request, reply) => {
-    const getTransactionParamsSchema = z.object({
-      id: z.string().uuid(),
-    })
-    const { id } = getTransactionParamsSchema.parse(request.params)
+      return {
+        data: transaction,
+      }
+    },
+  )
 
-    const transaction = await knex('transactions')
-      .select('*')
-      .where('id', id)
-      .first()
+  app.get(
+    '/summary',
+    {
+      preHandler: [checkSessionIdExists],
+    },
+    async (request) => {
+      const { sessionId } = request.cookies
 
-    if (!transaction) {
-      return reply.status(404).send({
-        error: 'Transaction not found',
-      })
-    }
+      const summary = await knex('transactions')
+        .where({
+          session_id: sessionId,
+        })
+        .sum('amount', { as: 'amount' })
+        .first()
 
-    return {
-      data: transaction,
-    }
-  })
-
-  app.get('/summary', async () => {
-    const summary = await knex('transactions')
-      .sum('amount', { as: 'amount' })
-      .first()
-
-    return {
-      data: summary,
-    }
-  })
+      return {
+        data: summary,
+      }
+    },
+  )
 
   app.post('/', async (request, reply) => {
     const createTransactionBodySchema = z.object({
