@@ -61,4 +61,34 @@ describe('transactions', () => {
       ]),
     )
   })
+
+  it('should be able to get a specific transaction.', async () => {
+    const createTransactionResponse = await request(app.server)
+      .post('/transactions')
+      .send({
+        amount: 100,
+        title: 'test',
+        type: 'credit',
+      })
+    const cookies = createTransactionResponse.get('Set-Cookie')
+
+    const listTransactionsResponse = await request(app.server)
+      .get('/transactions')
+      .set('Cookie', cookies)
+
+    const transactionId = listTransactionsResponse.body.data[0].id
+
+    const getTransactionResponse = await request(app.server)
+      .get(`/transactions/${transactionId}`)
+      .set('Cookie', cookies)
+
+    expect(getTransactionResponse.body.data).toEqual(
+      expect.objectContaining({
+        id: expect.any(String),
+        title: 'test',
+        amount: 100,
+        session_id: expect.any(String),
+      }),
+    )
+  })
 })
