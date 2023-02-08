@@ -91,4 +91,33 @@ describe('transactions', () => {
       }),
     )
   })
+
+  it('should be able to get summary.', async () => {
+    const createTransactionResponse = await request(app.server)
+      .post('/transactions')
+      .send({
+        amount: 100,
+        title: 'test credit',
+        type: 'credit',
+      })
+    const cookies = createTransactionResponse.get('Set-Cookie')
+    await request(app.server)
+      .post('/transactions')
+      .set('Cookie', cookies)
+      .send({
+        amount: 50,
+        title: 'test debit',
+        type: 'debit',
+      })
+
+    const getTransactionResponse = await request(app.server)
+      .get(`/transactions/summary`)
+      .set('Cookie', cookies)
+
+    expect(getTransactionResponse.body.data).toEqual(
+      expect.objectContaining({
+        amount: 50,
+      }),
+    )
+  })
 })
